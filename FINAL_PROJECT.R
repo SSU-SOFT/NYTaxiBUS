@@ -2,6 +2,12 @@ library(rhdfs)
 hdfs.init()
 library(rmr2)
 
+# geo coding 시각화
+#install.packages('ggplot2')
+#install.packages('ggmap')
+#install.packages("devtools")
+
+
 rm(list=ls())
 rmr.options(backend = "local")
 #rmr.options(backend = "hadoop")
@@ -61,3 +67,15 @@ JFK <- subset(JFK, ((JFK_LT[2] <= dropoff_longitude) & (dropoff_longitude <= JFK
 #Newark <- subset(data, ((Newark_RB[1] <= dropoff_latitude) & (dropoff_latitude <= Newark_LT[1])))
 #Newark <- subset(Newark, ((Newark_LT[2] <= dropoff_longitude) & (dropoff_longitude <= Newark_RB[2])))
 
+dat <- cbind(JFK['pickup_latitude'], JFK['pickup_longitude']); dat
+fit <- kmeans(dat, centers = 10)
+
+fit$cluster
+fit$centers
+
+# 시각화
+library(ggplot2)
+library(ggmap)
+
+register_google(key='AIzaSyCMaV4yY0ZirrR_dbKmSn74PRPu4O9Q26c')
+ggmap(get_map(location='Manhatten', zoom=11))
