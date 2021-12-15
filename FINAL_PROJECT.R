@@ -41,6 +41,11 @@ colnames
 
 data<-read.csv("./data/taxi/sample_combined1.csv")
 names(data)<-colnames
+
+data <- subset(data, pickup_latitude >= 40 & pickup_latitude <= 42)
+data <- subset(data, pickup_longitude >= -75 & pickup_longitude <= -73)
+data <- subset(data, dropoff_latitude >= 40 & dropoff_latitude <= 42)
+data <- subset(data, dropoff_longitude >= -75 & dropoff_longitude <= -73)
 head(data, 10)
 
 # - John F Kenedy 국제공함
@@ -54,28 +59,59 @@ JFK <- subset(JFK, ((JFK_LT[2] <= dropoff_longitude) & (dropoff_longitude <= JFK
 # - 뉴욕 라과디아 공항
 # : 40.776372, -73.877144 (Left Top)
 # : 40.766438, -73.860201 (Right Bottom)
-#LG_LT = c(40.776372, -73.877144)
-#LG_RB = c(40.766438, -73.860201)
-#LG <- subset(data, ((LG_RB[1] <= dropoff_latitude) & (dropoff_latitude <= LG_LT[1])))
-#LG <- subset(LG, ((LG_LT[2] <= dropoff_longitude) & (dropoff_longitude <= LG_RB[2])))
+LG_LT = c(40.776372, -73.877144)
+LG_RB = c(40.766438, -73.860201)
+LG <- subset(data, ((LG_RB[1] <= dropoff_latitude) & (dropoff_latitude <= LG_LT[1])))
+LG <- subset(LG, ((LG_LT[2] <= dropoff_longitude) & (dropoff_longitude <= LG_RB[2])))
 
 # - 뉴어크 리버티 국제공항
 # : 40.696027, -74.184740 (Left Top)
 # : 40.687360, -74.176749 (Right Bottom)
-#Newark_LT = c(40.696027, -74.184740)
-#Newark_RB = c(40.687360, -74.176749)
-#Newark <- subset(data, ((Newark_RB[1] <= dropoff_latitude) & (dropoff_latitude <= Newark_LT[1])))
-#Newark <- subset(Newark, ((Newark_LT[2] <= dropoff_longitude) & (dropoff_longitude <= Newark_RB[2])))
+Newark_LT = c(40.696027, -74.184740)
+Newark_RB = c(40.687360, -74.176749)
+Newark <- subset(data, ((Newark_RB[1] <= dropoff_latitude) & (dropoff_latitude <= Newark_LT[1])))
+Newark <- subset(Newark, ((Newark_LT[2] <= dropoff_longitude) & (dropoff_longitude <= Newark_RB[2])))
 
-dat <- cbind(JFK['pickup_latitude'], JFK['pickup_longitude']); dat
-fit <- kmeans(dat, centers = 10)
+JFK_dat <- cbind(JFK['pickup_latitude'], JFK['pickup_longitude'])
+LG_dat <- cbind(LG['pickup_latitude'], LG['pickup_longitude'])
+Newark_dat <- cbind(Newark['pickup_latitude'], Newark['pickup_longitude'])
 
-fit$cluster
-fit$centers
+#JFK_fit <- kmeans(JFK_dat, centers = 40)
+#LG_fit <- kmeans(LG_dat, centers = 40)
+#Newark_fit <- kmeans(Newark_dat, centers = 40)
+
+#install.packages('clValid')
+#install.packages("cluster")
+library(cluster)
+#library(clValid)
+#Data_clValid <- clValid(JFK_dat, 5:30, clMethods="kmeans", validation="internal", maxitems=nrow(JFK_dat))
+#summary(Data_clValid)
+
+# K 값 구하기
+avg_sil <- function(k, data) {
+  km.res <- kmeans(data, centers = k)
+  ss <- silhouette(km.res$cluster, dist(data, method="euclidean"))
+  avgSil <- mean(ss[,3])
+  return (avgSil)
+}
+JFK_sil = NULL
+LG_sil = NULL
+Newark_sil = NULL
+for (i in 2:20){
+  JFK_sil[i] <- avg_sil(i, JFK_dat)
+  LG_sil[i] <- avg_sil(i, LG_dat)
+  Newark_sil[i] <- avg_sil(i, Newark_dat)
+}
+plot(JFK_sil, type='b', pch = 19, col=2, frame = FALSE,xlab = "Number of clusters K",ylab = "Average Silhouettes")
+plot(LG_sil, type='b', pch = 19, col=3, frame = FALSE,xlab = "Number of clusters K",ylab = "Average Silhouettes")
+plot(Newark_sil, type='b', pch = 19, col=3, frame = FALSE,xlab = "Number of clusters K",ylab = "Average Silhouettes")
 
 # 시각화
 library(ggplot2)
 library(ggmap)
+result <- cbind(JFK_fit$cluster, JFK_dat); result
 
 register_google(key='AIzaSyCMaV4yY0ZirrR_dbKmSn74PRPu4O9Q26c')
-ggmap(get_map(location='Manhatten', zoom=11))
+map<-get_map(location='Manhatten', zoom=11)
+ggmap(map)+geom_point(data=as.data.frame(JFK_fit$centers),aes(x=pickup_longitude,y=pickup_latitude,color="red",alpha=0.3))
+#+geom_point(data=as.data.frame(LG_fit$centers),aes(x=pickup_longitude,y=pickup_latitude,color="blue",alpha=0.3))+geom_point(data=as.data.frame(Newark_fit$centers),aes(x=pickup_longitude,y=pickup_latitude,color="green",alpha=0.3))
