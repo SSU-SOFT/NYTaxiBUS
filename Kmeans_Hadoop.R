@@ -78,11 +78,20 @@ JFK <- subset(JFK, ((JFK_LT[2] <= dropoff_longitude) & (dropoff_longitude <= JFK
 #Newark <- subset(Newark, ((Newark_LT[2] <= dropoff_longitude) & (dropoff_longitude <= Newark_RB[2])))
 
 dat <- cbind(JFK['pickup_latitude'], JFK['pickup_longitude']); dat
-
+dat2 <- cbind(JFK['dropoff_latitude'], JFK['dropoff_longitude']); 
 
 dist.fun <- function(C, P){
   apply(C, 1, function(x) colSums((t(P) - x)^2))
 }
+
+
+
+################################폴리곤으로 제한###########################################
+require(sp)
+lat <- c(40.82933575889813, 40.753759184930544, 40.702398460626355, 40.70998130193526, 40.797353721667065) 
+lon <- c(-73.95244750207654,-74.00756554892766,-74.0179767355551,-73.97898582093077,-73.92876715602198)
+
+dat_inMan<-subset(dat,(point.in.polygon(pickup_latitude,pickup_longitude,lat,lon,mode.checked = FALSE))==1)
 
 ##################blog code##########################
 nearest<-NULL
@@ -108,7 +117,7 @@ kmeans.reduce<-function(k,v){
 
 
 ############################professor code#####################################
-num.clusters<-19
+num.clusters<-5
 kmeans.map<-function(.,P) {
   nearest<-if(is.null(C)){
     sample(1:num.clusters,nrow(P),replace=TRUE)
@@ -122,6 +131,7 @@ kmeans.map<-function(.,P) {
  
   keyval(nearest,cbind(1, P))
 }
+
 kmeans.reduce<-function(k,P) keyval(k,t(as.matrix(apply(P,2,sum))))
 
 
@@ -132,8 +142,11 @@ Kmeans_mr<-function(P,num.iters=5){
   for(i in 1:num.iters){
     print(i)
     #save_map[i]<<-from.dfs(mapreduce(to.dfs(dat),map=kmeans.map2));
-    mr<-from.dfs(mapreduce(to.dfs(dat),map=kmeans.map,reduce=kmeans.reduce));
+    mr<-from.dfs(mapreduce(to.dfs(scale(dat_inMan)),map=kmeans.map,reduce=kmeans.reduce));
     C<<-values(mr)[,-1]/values(mr)[,1];
+    #if(nrow(C)<num.clusters){
+    #  C<<-rbind(C,matrix(rnorm((num.clusters-nrow(C))*nrow(C)),ncol=nrow(C))%*%C)
+    #}
   }
   return(C)
 }
@@ -141,7 +154,7 @@ Kmeans_mr<-function(P,num.iters=5){
 #실행은 여기부터 
 C<-NULL
 num.iters<-10
-centers<-Kmeans_mr(P=to.dfs(dat),num.iters=num.iters)
+centers<-Kmeans_mr(P=to.dfs(dat_inMan),num.iters=num.iters)
 centers
 
 
@@ -167,9 +180,17 @@ centers_filtered<- subset(as.data.frame(centers), ((40 <= pickup_latitude) & (pi
 centers_filtered
 
 register_google(key='AIzaSyCMaV4yY0ZirrR_dbKmSn74PRPu4O9Q26c')
-map<-get_map(location='Manhatten', zoom=11)
+map<-get_map(location='NewYork', zoom=11)
 ggmap(map)+geom_point(data=centers_filtered,aes(x=pickup_longitude,y=pickup_latitude,color='red',alpha=0.3))
 
 fit_filter
 centers_filtered
+
+num.iters<-10
+centers<-Kmeans_mr(P=to.dfs(dat_inMan),num.iters=num.iters)
+centers
+
+ggmap(map)+geom_point(data=centers_filtered,aes(x=pickup_longitude,y=pickup_latitude,color='red',alpha=0.3))
+
+
 
