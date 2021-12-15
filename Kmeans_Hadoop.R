@@ -1,7 +1,7 @@
 library(rhdfs)
 hdfs.init()
 library(rmr2)
-
+library(cluster)
 rmr.options(backend = "local")
 
 # geo coding 시각화
@@ -84,9 +84,10 @@ dist.fun <- function(C, P){
   apply(C, 1, function(x) colSums((t(P) - x)^2))
 }
 
-
-kmeans.map<-function(k,v) {
-  nearest<-if(is.null(C)){
+##################blog code##########################
+nearest<-NULL
+kmeans.map2<-function(k,v) {
+  nearest<<-if(is.null(C)){
         #print("C in null")
         #print(num.clusters)
         sample(1:num.clusters,nrow(v),replace=TRUE)
@@ -105,16 +106,34 @@ kmeans.reduce<-function(k,v){
 } 
 
 
-num.clusters<-10
+
+############################professor code#####################################
+num.clusters<-19
+kmeans.map<-function(.,P) {
+  nearest<-if(is.null(C)){
+    sample(1:num.clusters,nrow(P),replace=TRUE)
+  }
+  else {
+    D<-dist.fun(C, P)
+    nearest<-max.col(-D)
+  }
+  
+  #print(cbind(1, P))
+ 
+  keyval(nearest,cbind(1, P))
+}
+kmeans.reduce<-function(k,P) keyval(k,t(as.matrix(apply(P,2,sum))))
+
+
+save_map<-NULL
+
 Kmeans_mr<-function(P,num.iters=5){
  
   for(i in 1:num.iters){
-    result<-from.dfs(mapreduce(input=P,map=kmeans.map,reduce=kmeans.reduce))
-    #print(result)
-    C<<-result$val
-    #if(nrow(C)<num.clusters){
-    #  C<-rbind(C,matrix(rnorm((num.clusters-nrow(C))*nrow(C)),ncol=nrow(C))%*%C)
-    #}
+    print(i)
+    #save_map[i]<<-from.dfs(mapreduce(to.dfs(dat),map=kmeans.map2));
+    mr<-from.dfs(mapreduce(to.dfs(dat),map=kmeans.map,reduce=kmeans.reduce));
+    C<<-values(mr)[,-1]/values(mr)[,1];
   }
   return(C)
 }
@@ -126,8 +145,11 @@ centers<-Kmeans_mr(P=to.dfs(dat),num.iters=num.iters)
 centers
 
 
+save_map
+
 #원래 데이터 정재
 fit <- kmeans(dat, centers = 10)
+
 
 fit$cluster
 fit$centers
@@ -146,7 +168,7 @@ centers_filtered
 
 register_google(key='AIzaSyCMaV4yY0ZirrR_dbKmSn74PRPu4O9Q26c')
 map<-get_map(location='Manhatten', zoom=11)
-ggmap(map)+geom_point(data=centers_filtered,aes(x=pickup_longitude,y=pickup_latitude,color='red',alpha=0.3))+geom_point(data=fit_filter,aes(x=pickup_longitude,y=pickup_latitude,alpha=0.3))
+ggmap(map)+geom_point(data=centers_filtered,aes(x=pickup_longitude,y=pickup_latitude,color='red',alpha=0.3))
 
 fit_filter
 centers_filtered
