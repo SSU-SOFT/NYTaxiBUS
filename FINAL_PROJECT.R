@@ -3,18 +3,22 @@ hdfs.init()
 library(rmr2)
 
 rm(list=ls())
+# local 가져오기
 rmr.options(backend = "local")
+files<-c("./data/taxi/info.csv", "./data/taxi/sample_combined1.csv"); files
+# Hadoop 가져오기
 #rmr.options(backend = "hadoop")
 # HDFS 상의 taxi 자료 파일 확인
 hdfs.ls("/data/taxi/combined")
 # 폴더에 포함된 파일 목록 files에 할당
 files <- hdfs.ls("/data/taxi/combined")$file; files
-
+files[1]
 # info.csv에 포함된 변수 이름과 클래스 정보 읽기
 mr <- mapreduce(input = files[1], 
                 input.format = make.input.format(
                   format = "csv", sep=",", stringsAsFactors=F)
 )
+
 res <- from.dfs(mr) 
 ress <- values(res)
 colnames.tmp <- as.character(ress[,1]); colnames.tmp
@@ -80,34 +84,62 @@ lat <- c(40.91334054972457, 40.87856519709389, 40.71742641845681, 40.59240527356
 lon <- c(-73.90957780414897, -73.78460832953785, -73.72899004688126, -73.74066301978449, -74.0112013329536, -74.0139479148132)
 
 JFK_total_dat<-subset(JFK_total_dat,(point.in.polygon(latitude,longitude,lat,lon,mode.checked = FALSE))==1)
-JFK_total_dat
 
 JFK_scaled <- scale(JFK_total_dat)
-JFK_scaled
 
-cluster_number = 11
 
+############################# K 값 구하기 #########################################
+avg_sil <- function(k, data) {
+  data <- scale(data)
+  km.res <- kmeans(data, centers = k)
+  ss <- silhouette(km.res$cluster, dist(data))
+  avgSil <- mean(ss[,3])
+  return (avgSil)
+}
+JFK_sil = NULL
+for (i in 2:30){
+  JFK_sil[i] <- avg_sil(i, JFK_total_dat)
+}
+plot(JFK_sil, type='b', pch = 19, col=2, frame = FALSE,xlab = "Number of clusters K",ylab = "Average Silhouettes")
+
+############################# K-means #############################################
 dist.fun <- function(C, P){
   apply(C, 1, function(x) colSums((t(P) - x)^2))
 }
 
-
 kmeans.map<-function(.,P) {
-  nearest<<-if(is.null(C)){
+  nearest<-if(is.null(C)){
     sample(1:cluster_number,nrow(P),replace=TRUE)
   }
   else {
     D<-dist.fun(C, P)
-    nearest<<-max.col(-D)
+    nearest<-max.col(-D)
   }
+  
+  if (i == num.iter){#마지막 iteration
+    print("print ggmap")
+    
+    #print(nearest)
+    JFK_tmp <- as.data.frame(P)
+    JFK_tmp['cluster'] <- nearest
+    print(JFK_tmp)
+    
+    gmap <- gmap+geom_point(data=JFK_tmp, aes(x=longitude, y = latitude, color = rainbow(cluster_number)[cluster], alpha = 0.01))
+  }
+  
   keyval(nearest,cbind(1, P))
 }
 
 kmeans.reduce<-function(k,P) keyval(k,t(as.matrix(apply(P,2,sum))))
 
 C=NULL
-nearest = NULL
 num.iter = 10
+cluster_number = 9
+## ggmap 초기화
+register_google(key='AIzaSyCMaV4yY0ZirrR_dbKmSn74PRPu4O9Q26c')
+map<-get_map(location='Manhatten', zoom=10)
+gmap <- ggmap(map)
+
 for(i in 1:num.iter){
   print(i)
   mr<-from.dfs(mapreduce(to.dfs(JFK_scaled),map=kmeans.map,reduce=kmeans.reduce));
@@ -120,12 +152,13 @@ mr
 C
 
 JFK_centers <- scale(C,center=FALSE,scale=1/attr(JFK_scaled,'scaled:scale'))
+
 JFK_centers <- scale(JFK_centers,center=-attr(JFK_scaled,'scaled:center'),scale=FALSE)
 
 JFK_centers
-register_google(key='AIzaSyCMaV4yY0ZirrR_dbKmSn74PRPu4O9Q26c')
-map<-get_map(location='Manhatten', zoom=10)
-gmap <- ggmap(map)
+
+
+
 #gmap <- gmap+geom_point(data=as.data.frame(JFK_total_dat), aes(x=longitude, y = latitude, color = rainbow(cluster_number)[cluster], alpha = 0.01))
 gmap <- gmap+geom_point(data=as.data.frame(JFK_centers), aes(x=longitude,y=latitude))
 gmap
