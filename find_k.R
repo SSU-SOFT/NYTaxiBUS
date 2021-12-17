@@ -1,4 +1,9 @@
-find_kvalue <- function(airport, limit){
+library(rhdfs)
+hdfs.init()
+library(rmr2)
+
+
+find_kvalue <- function(LT, RB, limit){
   # local 가져오기
   rmr.options(backend = "local")
   files<-c("./data/taxi/info.csv", "./data/taxi/sample_combined1.csv"); files
@@ -42,18 +47,6 @@ find_kvalue <- function(airport, limit){
   taxi <- subset(taxi, 0 < trip_time_in_secs & trip_time_in_secs < 4000000)
   head(taxi,10)
   
-  if(airport == "JFK"){
-    LT = c(40.649352, -73.793321)
-    RB = c(40.639029, -73.775726)
-  }
-  else if(airport == "LG"){
-    LT = c(40.649352, -73.793321)
-    RB = c(40.639029, -73.775726)
-  }
-  else if(airport == "Newark"){
-    LT = c(40.696027, -74.184740)
-    RB = c(40.687360, -74.176749)
-  }
   # 도착이 공항인 택시
   dropoff <- subset(taxi, ((RB[1] <= dropoff_latitude) & (dropoff_latitude <= LT[1])))
   dropoff <- subset(dropoff, ((LT[2] <= dropoff_longitude) & (dropoff_longitude <= RB[2])))
@@ -98,5 +91,22 @@ find_kvalue <- function(airport, limit){
     sil[i] <- avg_sil(i, total_dat)
   }
   plot(sil, type='b', pch = 19, col=2, frame = FALSE,xlab = "Number of clusters K",ylab = "Average Silhouettes")
-
+  
 }
+
+# JFK 공항 좌표
+#LT = c(40.649352, -73.793321)
+#RB = c(40.639029, -73.775726)
+
+# LGA 공항 좌표
+#LT = c(40.776372, -73.877144)
+#RB = c(40.766438, -73.860201)
+
+# Newark 공항 좌표
+LT = c(40.696027, -74.184740)
+RB = c(40.687360, -74.176749)
+
+#limit = "manhattan", "newyork" 둘중 하나
+
+
+find_kvalue(LT, RB, limit = "manhattan")
