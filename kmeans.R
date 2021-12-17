@@ -133,7 +133,7 @@ execute <- function(LT, RB, limit){
   kmeans.reduce<-function(k,P) keyval(k,t(as.matrix(apply(P,2,sum))))
   
   C=NULL
-  num.iter = 10
+  num.iter = 9
   cluster_number = 12
   ## ggmap 초기화
   
@@ -144,9 +144,9 @@ execute <- function(LT, RB, limit){
   for(i in 1:num.iter){
     print(i)
     if(i==num.iter){
-      tmp<-from.dfs(mapreduce(to.dfs(JFK_scaled),map=kmeans.gmap));
+      tmp<-from.dfs(mapreduce(to.dfs(scaled),map=kmeans.gmap));
     }
-    mr<-from.dfs(mapreduce(to.dfs(JFK_scaled),map=kmeans.map,reduce=kmeans.reduce));
+    mr<-from.dfs(mapreduce(to.dfs(scaled),map=kmeans.map,reduce=kmeans.reduce));
     C<-values(mr)[,-1]/values(mr)[,1];
     
     if(nrow(C)<cluster_number){
