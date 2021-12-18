@@ -87,8 +87,10 @@ res <- from.dfs(mapreduce(input=to.dfs(JFK_total_dat), map=count.map, reduce=cou
 res <- as.data.frame(res); res
 result_cnt <- data.frame(sort(res$key), res$val[order(res$key)])
 names(result_cnt) <- c('t', 'cnt'); result_cnt
-result_cnt['cnt'] <- result_cnt['cnt'] / 30; result_cnt
-num <- mean(result_cnt$cnt)
+result_cnt['cnt'] <- result_cnt['cnt'] / (30 * 12); result_cnt
+result_cnt
+plot(result_cnt, type='b', pch = 19, col=2, frame = FALSE,xlab = "Timestamp",ylab = "Average Passenger")
+num <- mean(result_cnt$cnt); num
 
 ######################## 상관관계 ###############################
 JFK_total_dat <- JFK_total_dat[,-c(1,2)] 
@@ -107,10 +109,10 @@ panel.cor <- function(x, y, digits = 2, prefix = "", cex.cor, ...)
 pairs(JFK_total_dat[, c(3,4,5,6,7,8,14,15)], upper.panel = panel.cor, lower.panel = NULL)
 # total_amount -> 8 / trip_time_in_secs = 14 / trip_distance = 15
 
-regmap <- function(., v) {
+map.fun <- function(k, v) {
   dat <- data.frame(fare_amount = v$fare_amount, trip_distance = v$trip_distance)
-  Xk <- model.matrix(fare_amount~trip_distance, dat)
-  yk <- as.matrix(dat[,1])
+  Xk <- model.matrix(fare_amount ~ trip_distance, dat)
+  yk <- as.matrix(dat[, 1])
   
   XtXk <- crossprod(Xk, Xk)
   Xtyk <- crossprod(Xk, yk)
@@ -118,18 +120,18 @@ regmap <- function(., v) {
   
   keyval(1, list(XtXk, Xtyk, ytyk))
 }
-regreduce <- function(k, v) {
+
+reduce.fun <- function(k, v){
   XtX <- Reduce("+", v[seq_along(v) %% 3 == 1])
   Xty <- Reduce("+", v[seq_along(v) %% 3 == 2])
   yty <- Reduce("+", v[seq_along(v) %% 3 == 0])
   
-  beta.hat <- solve(XtX, Xty)
-  nn <- XtX[1,1]
-  res <- list(XtX = XtX, Xty=Xty, yty=yty, n=nn, beta.hat=beta.hat)
+  res <- list(XtX = XtX, Xty=Xty, yty=yty)
   
   keyval(1, res)
 }
-
-res <- values(from.dfs(mapreduce(to.dfs(JFK_total_dat), map = regmap, reduce = regreduce, combine = T)));res
-plot(JFK_total_dat$trip_distance, JFK_total_dat$total_amount, col=6, pch=16)
-abline(res$beta.hat[1], res$beta.hat[2]) 
+result <- values(from.dfs(mapreduce(input=to.dfs(JFK_total_dat), map=map.fun, reduce=reduce.fun, combine=TRUE)))
+nn <- result$XtX[1,1]; nn
+beta.hat <- solve(result$XtX, result$Xty); beta.hat
+plot(JFK_total_dat$trip_distance, JFK_total_dat$fare_amount, col=6, pch=16)
+abline(beta.hat[1], beta.hat[2]) 
