@@ -46,26 +46,9 @@ taxi <- taxi[!(taxi$passenger_count == 0 | taxi$passenger_count > 6),] # 승객�
 # 뉴욕 구간이 아닌 것을 제거
 taxi <- subset(taxi, pickup_longitude > -75 & pickup_longitude < -73 & pickup_latitude > 40 & pickup_latitude < 42)
 taxi <- subset(taxi, dropoff_longitude > -75 & dropoff_longitude < -73 & dropoff_latitude > 40 & dropoff_latitude < 42)
-taxi <- subset(taxi, 0 < trip_distance)
+taxi <- subset(taxi, 0 < trip_distance & trip_distance < 1000)
 taxi <- subset(taxi, 0 < trip_time_in_secs & trip_time_in_secs < 4000000)
 head(taxi, 10)
-
-########################### John F Kenedy 국제공항 ###########################
-# : 40.649352, -73.793321 (Left Top)
-# : 40.639029, -73.775726 (right Bottom)
-JFK_LT = c(40.649352, -73.793321)
-JFK_RB = c(40.639029, -73.775726)
-# 도착이 JFK 공항인 택시
-JFK_dropoff <- subset(taxi, ((JFK_RB[1] <= dropoff_latitude) & (dropoff_latitude <= JFK_LT[1])))
-JFK_dropoff <- subset(JFK_dropoff, ((JFK_LT[2] <= dropoff_longitude) & (dropoff_longitude <= JFK_RB[2])))
-
-# 출발이 JFK 공항인 택시
-JFK_pickup <- subset(taxi, ((JFK_RB[1] <= pickup_latitude) & (pickup_latitude <= JFK_LT[1])))
-JFK_pickup <- subset(JFK_pickup, ((JFK_LT[2] <= pickup_longitude) & (pickup_longitude <= JFK_RB[2])))
-
-# JFK 공항에서 출발하거나 도착한 모든 택시 데이터
-JFK_total_dat <- rbind(JFK_dropoff, JFK_pickup)
-head(JFK_total_dat, 10)
 
 ######################## 공항 이용객 시간대별 카운트 #######################################
 count.map <- function(K, V){
@@ -83,31 +66,84 @@ count.reduce <- function(K, V){
   keyval(K, sum(V))
 }
 
-res <- from.dfs(mapreduce(input=to.dfs(JFK_total_dat), map=count.map, reduce=count.reduce)); res
-res <- as.data.frame(res); res
-result_cnt <- data.frame(sort(res$key), res$val[order(res$key)])
-names(result_cnt) <- c('t', 'cnt'); result_cnt
-result_cnt['cnt'] <- result_cnt['cnt'] / (30 * 12); result_cnt
-result_cnt
-plot(result_cnt, type='b', pch = 19, col=2, frame = FALSE,xlab = "Timestamp",ylab = "Average Passenger")
-num <- mean(result_cnt$cnt); num
-
-######################## 상관관계 ###############################
-JFK_total_dat <- JFK_total_dat[,-c(1,2)] 
-str(JFK_total_dat)
-panel.cor <- function(x, y, digits = 2, prefix = "", cex.cor, ...)
-{
-  usr <- par("usr"); on.exit(par(usr))
-  par(usr = c(0, 1, 0, 1))
-  r <- abs(cor(x, y))
-  txt <- format(c(r, 0.123456789), digits = digits)[1]
-  txt <- paste0(prefix, txt)
-  if(missing(cex.cor)) cex.cor <- 0.8/strwidth(txt)
-  text(0.5, 0.5, txt, cex = cex.cor * r)
+count_passenger <- function (LT, RB, data) {
+  dropoff <- subset(data, ((RB[1] <= dropoff_latitude) & (dropoff_latitude <= LT[1])))
+  dropoff <- subset(dropoff, ((LT[2] <= dropoff_longitude) & (dropoff_longitude <= RB[2])))
+  pickup <- subset(data, ((RB[1] <= pickup_latitude) & (pickup_latitude <= LT[1])))
+  pickup <- subset(pickup, ((LT[2] <= pickup_longitude) & (pickup_longitude <= RB[2])))
+  total_dat <- rbind(dropoff, pickup)
+  
+  res <- from.dfs(mapreduce(input=to.dfs(total_dat), map=count.map, reduce=count.reduce)); res
+  res <- as.data.frame(res); res
+  result_cnt <- data.frame(sort(res$key), res$val[order(res$key)])
+  names(result_cnt) <- c('t', 'cnt');
+  result_cnt['cnt'] <- result_cnt['cnt'] / (30 * 12);
+  plot(result_cnt, type='b', pch = 19, col=2, frame = FALSE,xlab = "Timestamp",ylab = "Average Passenger")
+  num <- mean(result_cnt$cnt); 
+  return (num)
 }
 
-pairs(JFK_total_dat[, c(3,4,5,6,7,8,14,15)], upper.panel = panel.cor, lower.panel = NULL)
-# total_amount -> 8 / trip_time_in_secs = 14 / trip_distance = 15
+# - John F Kenedy 국제공항
+JFK_LT = c(40.649352, -73.793321)
+JFK_RB = c(40.639029, -73.775726)
+
+# - 뉴욕 라과디아 공항
+LG_LT = c(40.776372, -73.877144)
+LG_RB = c(40.766438, -73.860201)
+
+# - 뉴어크 리버티 국제공항
+Newark_LT = c(40.696027, -74.184740)
+Newark_RB = c(40.687360, -74.176749)
+
+JFK_num <- count_passenger(JFK_LT, JFK_RB, data)
+LG_num <- count_passenger(LG_LT, LG_RB, data)
+Newark_num <- count_passenger(Newark_LT, Newark_RB, data)
+
+######################## 상관관계 ###############################
+
+merge_data <- function(LT, RB) {
+  dropoff <- subset(data, ((RB[1] <= dropoff_latitude) & (dropoff_latitude <= LT[1])))
+  dropoff <- subset(dropoff, ((LT[2] <= dropoff_longitude) & (dropoff_longitude <= RB[2])))
+  pickup <- subset(data, ((RB[1] <= pickup_latitude) & (pickup_latitude <= LT[1])))
+  pickup <- subset(pickup, ((LT[2] <= pickup_longitude) & (pickup_longitude <= RB[2])))
+  
+  return (rbind(dropoff, pickup))
+}
+
+check_corr <- function(data) {
+  total_dat <- data[,-c(1,2)] 
+  str(total_dat)
+  panel.cor <- function(x, y, digits = 2, prefix = "", cex.cor, ...)
+  {
+    usr <- par("usr"); on.exit(par(usr))
+    par(usr = c(0, 1, 0, 1))
+    r <- abs(cor(x, y))
+    txt <- format(c(r, 0.123456789), digits = digits)[1]
+    txt <- paste0(prefix, txt)
+    if(missing(cex.cor)) cex.cor <- 0.8/strwidth(txt)
+    text(0.5, 0.5, txt, cex = cex.cor * r)
+  }
+  
+  pairs(total_dat[, c(3,4,5,6,7,8,14,15)], upper.panel = panel.cor, lower.panel = NULL)
+  # total_amount -> 8 / trip_time_in_secs = 14 / trip_distance = 15
+}
+
+# - John F Kenedy 국제공항
+JFK_LT = c(40.649352, -73.793321)
+JFK_RB = c(40.639029, -73.775726)
+
+# - 뉴욕 라과디아 공항
+LG_LT = c(40.776372, -73.877144)
+LG_RB = c(40.766438, -73.860201)
+
+# - 뉴어크 리버티 국제공항
+Newark_LT = c(40.696027, -74.184740)
+Newark_RB = c(40.687360, -74.176749)
+
+total_dat <- rbind(merge_data(JFK_LT, JFK_RB), merge_data(LG_LT, LG_RB), merge_data(Newark_LT, Newark_RB))
+check_corr(total_dat)
+
+############################# 회귀분석 ###################################
 
 map.fun <- function(k, v) {
   dat <- data.frame(fare_amount = v$fare_amount, trip_distance = v$trip_distance)
@@ -130,8 +166,36 @@ reduce.fun <- function(k, v){
   
   keyval(1, res)
 }
-result <- values(from.dfs(mapreduce(input=to.dfs(JFK_total_dat), map=map.fun, reduce=reduce.fun, combine=TRUE)))
-nn <- result$XtX[1,1]; nn
-beta.hat <- solve(result$XtX, result$Xty); beta.hat
-plot(JFK_total_dat$trip_distance, JFK_total_dat$fare_amount, col=6, pch=16)
-abline(beta.hat[1], beta.hat[2]) 
+
+fare_Regression <- function (LT, RB, data) {
+  dropoff <- subset(data, ((RB[1] <= dropoff_latitude) & (dropoff_latitude <= LT[1])))
+  dropoff <- subset(dropoff, ((LT[2] <= dropoff_longitude) & (dropoff_longitude <= RB[2])))
+  pickup <- subset(data, ((RB[1] <= pickup_latitude) & (pickup_latitude <= LT[1])))
+  pickup <- subset(pickup, ((LT[2] <= pickup_longitude) & (pickup_longitude <= RB[2])))
+  total_dat <- rbind(dropoff, pickup)
+  
+  result <- values(from.dfs(mapreduce(input=to.dfs(JFK_total_dat), map=map.fun, reduce=reduce.fun, combine=TRUE)))
+  nn <- result$XtX[1,1]; nn
+  beta.hat <- solve(result$XtX, result$Xty); beta.hat
+  plot(JFK_total_dat$trip_distance, JFK_total_dat$fare_amount, col=6, pch=16)
+  abline(beta.hat[1], beta.hat[2]) 
+  
+  return (beta.hat)
+}
+
+# - John F Kenedy 국제공항
+JFK_LT = c(40.649352, -73.793321)
+JFK_RB = c(40.639029, -73.775726)
+
+# - 뉴욕 라과디아 공항
+LG_LT = c(40.776372, -73.877144)
+LG_RB = c(40.766438, -73.860201)
+
+# - 뉴어크 리버티 국제공항
+Newark_LT = c(40.696027, -74.184740)
+Newark_RB = c(40.687360, -74.176749)
+
+JFK_reg <- fare_Regression(JFK_LT, JFK_RB, taxi)
+LG_reg <- fare_Regression(LG_LT, LG_RB, taxi)
+Newark_reg <- fare_Regression(Newark_LT, Newark_RB, taxi)
+
