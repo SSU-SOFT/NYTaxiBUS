@@ -174,10 +174,10 @@ fare_Regression <- function (LT, RB, data) {
   pickup <- subset(pickup, ((LT[2] <= pickup_longitude) & (pickup_longitude <= RB[2])))
   total_dat <- rbind(dropoff, pickup)
   
-  result <- values(from.dfs(mapreduce(input=to.dfs(JFK_total_dat), map=map.fun, reduce=reduce.fun, combine=TRUE)))
+  result <- values(from.dfs(mapreduce(input=to.dfs(total_dat), map=map.fun, reduce=reduce.fun, combine=TRUE)))
   nn <- result$XtX[1,1]; nn
   beta.hat <- solve(result$XtX, result$Xty); beta.hat
-  plot(JFK_total_dat$trip_distance, JFK_total_dat$fare_amount, col=6, pch=16)
+  plot(total_dat$trip_distance, total_dat$fare_amount, col=6, pch=16)
   abline(beta.hat[1], beta.hat[2]) 
   
   return (beta.hat)
