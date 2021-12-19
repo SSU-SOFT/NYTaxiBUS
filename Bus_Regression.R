@@ -95,13 +95,13 @@ LG_RB = c(40.766438, -73.860201)
 Newark_LT = c(40.696027, -74.184740)
 Newark_RB = c(40.687360, -74.176749)
 
-JFK_num <- count_passenger(JFK_LT, JFK_RB, data)
-LG_num <- count_passenger(LG_LT, LG_RB, data)
-Newark_num <- count_passenger(Newark_LT, Newark_RB, data)
+JFK_num <- count_passenger(JFK_LT, JFK_RB, taxi)
+LG_num <- count_passenger(LG_LT, LG_RB, taxi)
+Newark_num <- count_passenger(Newark_LT, Newark_RB, taxi)
 
 ######################## 상관관계 ###############################
 
-merge_data <- function(LT, RB) {
+merge_data <- function(LT, RB, data) {
   dropoff <- subset(data, ((RB[1] <= dropoff_latitude) & (dropoff_latitude <= LT[1])))
   dropoff <- subset(dropoff, ((LT[2] <= dropoff_longitude) & (dropoff_longitude <= RB[2])))
   pickup <- subset(data, ((RB[1] <= pickup_latitude) & (pickup_latitude <= LT[1])))
@@ -111,8 +111,7 @@ merge_data <- function(LT, RB) {
 }
 
 check_corr <- function(data) {
-  total_dat <- data[,-c(1,2)] 
-  str(total_dat)
+  total_dat <- data[,-c(1,2)]
   panel.cor <- function(x, y, digits = 2, prefix = "", cex.cor, ...)
   {
     usr <- par("usr"); on.exit(par(usr))
@@ -140,7 +139,7 @@ LG_RB = c(40.766438, -73.860201)
 Newark_LT = c(40.696027, -74.184740)
 Newark_RB = c(40.687360, -74.176749)
 
-total_dat <- rbind(merge_data(JFK_LT, JFK_RB), merge_data(LG_LT, LG_RB), merge_data(Newark_LT, Newark_RB))
+total_dat <- rbind(merge_data(JFK_LT, JFK_RB, taxi), merge_data(LG_LT, LG_RB, taxi), merge_data(Newark_LT, Newark_RB, taxi))
 check_corr(total_dat)
 
 ############################# 회귀분석 ###################################
