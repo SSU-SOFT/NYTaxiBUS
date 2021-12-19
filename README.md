@@ -13,4 +13,4 @@
  또한 trip_distance와 fare_amount 선형 회귀 분석 결과와 각 공항의 평균 탑승 인원을 계산하여 버스 요금을 정한다.
  
  
-[Notion](https://quartz-riverbed-7f1.notion.site/badaa0f393414c8a94a29c7be1c33bd1)
+[Notion 링크 바로가기](https://quartz-riverbed-7f1.notion.site/badaa0f393414c8a94a29c7be1c33bd1)
