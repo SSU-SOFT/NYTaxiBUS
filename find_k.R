@@ -3,7 +3,7 @@ hdfs.init()
 library(rmr2)
 
 
-find_kvalue <- function(LT, RB, limit){
+find_kvalue <- function(LT, RB){
   # local 가져오기
   rmr.options(backend = "local")
   files<-c("./data/taxi/info.csv", "./data/taxi/sample_combined1.csv"); files
@@ -64,19 +64,11 @@ find_kvalue <- function(LT, RB, limit){
   
   ################################폴리곤으로 제한###########################################
   require(sp)
-  
-  # 맨해튼 시
-  if(limit == "manhattan"){
-    lat <- c(40.82933575889813, 40.753759184930544, 40.702398460626355, 40.70998130193526, 40.797353721667065) 
-    lon <- c(-73.95244750207654,-74.00756554892766,-74.0179767355551,-73.97898582093077,-73.92876715602198)
-  }
-  
+
   #뉴욕시 전체 
-  else if(limit == "newyork"){
-    lat <- c(40.91334054972457, 40.87856519709389, 40.71742641845681, 40.59240527356296, 40.57154564303528, 40.74812490240338)
-    lon <- c(-73.90957780414897, -73.78460832953785, -73.72899004688126, -73.74066301978449, -74.0112013329536, -74.0139479148132)
-  }
-  
+  lat <- c(40.91334054972457, 40.87856519709389, 40.71742641845681, 40.59240527356296, 40.57154564303528, 40.74812490240338)
+  lon <- c(-73.90957780414897, -73.78460832953785, -73.72899004688126, -73.74066301978449, -74.0112013329536, -74.0139479148132)
+
   total_dat<-subset(total_dat,(point.in.polygon(latitude,longitude,lat,lon,mode.checked = FALSE))==1)
   
   avg_sil <- function(k, data) {
@@ -106,7 +98,5 @@ find_kvalue <- function(LT, RB, limit){
 LT = c(40.696027, -74.184740)
 RB = c(40.687360, -74.176749)
 
-#limit = "manhattan", "newyork" 둘중 하나
 
-
-find_kvalue(LT, RB, limit = "manhattan")
+find_kvalue(LT, RB)
