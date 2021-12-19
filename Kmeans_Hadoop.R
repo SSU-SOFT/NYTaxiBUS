@@ -135,7 +135,7 @@ cluster_number = 8 #K값
 
 ## ggmap 초기화
 library("ggmap")
-register_google(key='AIzaSyCMaV4yY0ZirrR_dbKmSn74PRPu4O9Q26c')
+register_google(key='구글맵APIkey')
 map<-get_map(location='Manhatten', zoom=10)
 
 gmap <- ggmap(map)
